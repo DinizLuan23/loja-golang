@@ -13,7 +13,7 @@ type Produto struct {
 func BuscaProdutos() []Produto {
 	db := db.ConectaBd()
 
-	selectProdutos, err := db.Query("select * from produtos")
+	selectProdutos, err := db.Query("select * from produtos order by id desc")
 
 	if err != nil {
 		panic(err.Error())
@@ -23,26 +23,37 @@ func BuscaProdutos() []Produto {
 	produtos := []Produto{}
 
 	for selectProdutos.Next() {
-		var id, quantidade int
-		var nome, descricao string
-		var preco float64
-
-		err = selectProdutos.Scan(&id, &nome, &preco, &quantidade, &descricao)
+		err = selectProdutos.Scan(&p.Id, &p.Nome, &p.Preco, &p.Quantidade, &p.Descricao)
 		if err != nil {
 			panic(err.Error())
 		}
-
-		p.Id = id
-		p.Nome = nome
-		p.Descricao = descricao
-		p.Preco = preco
-		p.Quantidade = quantidade
 
 		produtos = append(produtos, p)
 	}
 
 	defer db.Close()
 	return produtos
+}
+
+func BuscarProduto(produtoId string) Produto {
+	db := db.ConectaBd()
+
+	queryProduto, err := db.Query("select * from produtos where id=$1", produtoId)
+	if err != nil {
+		panic(err.Error())
+	}
+
+	produto := Produto{}
+
+	for queryProduto.Next(){
+		err = queryProduto.Scan(&produto.Id, &produto.Nome, &produto.Preco, &produto.Quantidade, &produto.Descricao)
+		if err != nil {
+			panic(err.Error())
+		}
+	}
+
+	defer db.Close()
+	return produto
 }
 
 func CriarProduto(produto Produto) {
@@ -54,6 +65,18 @@ func CriarProduto(produto Produto) {
 	}
 
 	inserirDados.Exec(produto.Nome, produto.Descricao, produto.Preco, produto.Quantidade)
+	defer db.Close()
+}
+
+func AtualizarProduto(produto Produto) {
+	db := db.ConectaBd()
+
+	atualizarProduto, err := db.Prepare("update produtos set nome=$1, preco=$2, quantidade=$3, descricao=$4 where id=$5")
+	if err != nil {
+		panic(err.Error())
+	}
+
+	atualizarProduto.Exec(produto.Nome, produto.Preco, produto.Quantidade, produto.Descricao, produto.Id)
 	defer db.Close()
 }
 
